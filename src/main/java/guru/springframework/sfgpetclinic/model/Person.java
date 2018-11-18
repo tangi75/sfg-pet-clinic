@@ -1,5 +1,6 @@
 package guru.springframework.sfgpetclinic.model;
 
+// Base POJO class
 public class Person {
 
     private String firstName;
