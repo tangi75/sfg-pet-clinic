@@ -1,0 +1,61 @@
+version: 2 # use CircleCI 2.0
+jobs: # a collection of steps
+  build: # runs not using Workflows must have a `build` job as entry point
+
+    working_directory: ~/circleci-sfg-pet-clinic # directory where steps will run
+
+    environment:
+      # Customize the JVM maximum heap limit
+      MAVEN_OPTS: -Xmx3200m
+      
+    docker: # run the steps with Docker
+    - image: circleci/openjdk:11-jdk-browsers # ...with this image as the primary container; this is where all `steps` will run
+
+    steps: # a collection of executable commands
+
+    - checkout # check out source code to working directory
+
+    - restore_cache: # restore the saved cache after the first run or if `pom.xml` has changed
+        # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
+        key: circleci-sfg-pet-clinic-{{ checksum "pom.xml" }}
+
+    - run: mvn dependency:go-offline # gets the project dependencies
+
+    - save_cache: # saves the project dependencies
+        paths:
+        - ~/.m2
+        key: circleci-sfg-pet-clinic-{{ checksum "pom.xml" }}
+
+    - run: mvn package verify # run the actual tests
+
+    # uploads the test metadata from the `target/surefire-reports` directory so that it can show up in the CircleCI dashboard.
+    # Upload test results for display in Test Summary: https://circleci.com/docs/2.0/collect-test-data/
+    - run:
+        name: Save unit test results
+        command: |
+          mkdir -p ~/junit/
+          find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} ~/junit/ \;
+        when: always
+    - store_test_results:
+        path: ~/junit
+    - store_artifacts:
+        path: ~/junit
+
+    - run:
+        name: Save integration test results
+        command: |
+          mkdir -p ~/failsafe/
+          find . -type f -regex ".*/target/failsafe-reports/.*xml" -exec cp {} ~/failsafe/ \;
+        when: always
+    - store_test_results:
+        path: ~/failsafe
+    - store_artifacts:
+        path: ~/failsafe
+
+    - store_artifacts: # store the uberjar as an artifact
+        # Upload test summary for display in Artifacts: https://circleci.com/docs/2.0/artifacts/
+        path: pet-clinic-data/target/pet-clinic-data-0.0.4-SNAPSHOT.jar
+    - store_artifacts:
+        path: pet-clinic-web/target/pet-clinic-web-0.0.4-SNAPSHOT.jar
+
+    # See https://circleci.com/docs/2.0/deployment-integrations/ for deploy examples
